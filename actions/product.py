@@ -9,14 +9,15 @@ from selenium.webdriver.common.by import By
 from services.aws_post import request_aws_post as post
 
 
-def product(client_id, category_id, products_on_db, browser):
+def product(client_id, category_id, products_on_db, current_product_list, browser):
+    id_form_scrapping_site = browser.current_url.split('-')[-1]
     pictures = []
     description = ""
     now_utc = datetime.datetime.now()
     data_formated = now_utc.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
     obj_to_inject = {
-        "id": id_generator(),
+        "id": id_form_scrapping_site,
         "categoryId": category_id,
         "emporiumId": client_id,
         "name": "",
@@ -30,6 +31,7 @@ def product(client_id, category_id, products_on_db, browser):
         "discountType": "currency",
         "galleryPath": "",
         "highlightedGalleryPath": "bot-auto",
+        "videoPath": "",
         "createdAt": data_formated,
         "updatedAt": data_formated,
         "__typename": "Products"
@@ -39,13 +41,17 @@ def product(client_id, category_id, products_on_db, browser):
         product_brand = xpath(element.brand_h1, browser).text
         product_tile = xpath(element.title_h1, browser).text
 
-        is_name_on_db = [obj for obj in products_on_db if obj["name"] == f"{product_brand} - {product_tile}" and obj["categoryId"] == category_id]
-
-        print(is_name_on_db)
+        is_name_on_db = [obj for obj in products_on_db if obj["id"] == id_form_scrapping_site and obj["categoryId"] == category_id]
 
         if len(is_name_on_db) >= 1:
+            print(f"\n[UPDATE]\nID: {is_name_on_db[0]["id"]}\nNAME: {is_name_on_db[0]["name"]}")
+
             obj_to_inject["id"] = is_name_on_db[0]["id"]
             obj_to_inject["reference"] = is_name_on_db[0]["reference"]
+            obj_to_inject["videoPath"] = f"emporiums/videos/{client_id}/{is_name_on_db[0]["id"]}/preview.mp4"
+        else:
+            # print(f"\n[CREATE]\nID: {is_name_on_db[0]["id"]}\nNAME: {is_name_on_db[0]["name"]}")
+            print(f"CRIANDO NOVO")
 
         obj_to_inject["name"] = f"{product_brand} - {product_tile}"
         obj_to_inject["nameSearch"] = product_tile.replace(" ", "_").replace(".", "_").replace("-", "_").upper()
@@ -56,7 +62,7 @@ def product(client_id, category_id, products_on_db, browser):
 
         for i, feature in enumerate(features_with_image):
             if i % 2 == 0:
-                description += f"* {feature.text} {features_with_image[i + 1].text}\n\n"
+                description += f"* {feature.text.replace("Â", "â").replace("M", "m").replace("Í", "í").replace("V", "v")} {features_with_image[i + 1].text}\n\n"
 
         description += "------------------\n\n"
 
@@ -112,17 +118,24 @@ def product(client_id, category_id, products_on_db, browser):
 
         obj_to_inject["description"] = description
 
+        current_product_list.append(obj_to_inject)
         post("product", data=obj_to_inject)
 
     except TimeoutException:
         product_brand = xpath(element.brand_h1, browser).text
         product_tile = xpath(element.title_h1, browser).text
 
-        is_name_on_db = [obj for obj in products_on_db if obj["name"] == f"{product_brand} - {product_tile}"]
+        is_name_on_db = [obj for obj in products_on_db if obj["id"] == id_form_scrapping_site and obj["categoryId"] == category_id]
 
         if len(is_name_on_db) >= 1:
+            print(f"\n[UPDATE]\nID: {is_name_on_db[0]["id"]}\nNAME: {is_name_on_db[0]["name"]}")
+
             obj_to_inject["id"] = is_name_on_db[0]["id"]
             obj_to_inject["reference"] = is_name_on_db[0]["reference"]
+            obj_to_inject["videoPath"] = f"emporiums/videos/{client_id}/{is_name_on_db[0]["id"]}/preview.mp4"
+        else:
+            # print(f"\n[CREATE]\nID: {is_name_on_db[0]["id"]}\nNAME: {is_name_on_db[0]["name"]}")
+            print(f"CRIANDO NOVO")
 
         obj_to_inject["name"] = f"{product_brand} - {product_tile}"
         obj_to_inject["nameSearch"] = product_tile.replace(" ", "_").replace(".", "_").replace("-", "_").upper()
@@ -133,7 +146,7 @@ def product(client_id, category_id, products_on_db, browser):
 
         for i, feature in enumerate(features_with_image):
             if i % 2 == 0:
-                description += f"* {feature.text} {features_with_image[i + 1].text}\n\n"
+                description += f"* {feature.text.replace("Â", "â").replace("M", "m")} {features_with_image[i + 1].text}\n\n"
 
         description += "------------------\n\n"
 
@@ -179,4 +192,5 @@ def product(client_id, category_id, products_on_db, browser):
 
         obj_to_inject["description"] = description
 
+        current_product_list.append(obj_to_inject)
         post("product", data=obj_to_inject)

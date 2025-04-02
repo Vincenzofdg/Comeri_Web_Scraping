@@ -3,11 +3,11 @@ from tools.selenium_functions import xpath
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from actions.product import product
-from services.aws_get import request_aws_get as get
+from services.aws_delete import request_aws_delete as delete_by_id
 
-def product_list(url, client_id, category_id, browser):
+def product_list(url, client_id, category_id, current_products, browser):
+    current_product_list = []
     browser.get(url)
-    client_products_on_db = get("product", client_id)
 
     try:
         accept_btn_div = xpath(element.pagination_div, browser)
@@ -26,9 +26,35 @@ def product_list(url, client_id, category_id, browser):
                 img_from_div = xpath(f'{element.car_div}/div[{car + 1}]/div/div[1]/a', browser)
                 img_from_div.click()
 
-                product(client_id, category_id, client_products_on_db, browser)
+                product(client_id, category_id, current_products, current_product_list, browser)
 
                 browser.back()
 
+        product_diff = [product for product in current_products
+                        if product["name"] not in {p["name"] for p in current_product_list}]
+
+        for product_delete in product_diff:
+            delete_by_id("product", product_delete["id"])
+            print(f"\n[DELETE]\nID: {product_delete["id"]}\nNAME: {product_delete["name"]}")
+
     except TimeoutException:
-        print("TimeoutException problem on product")
+        cars_div = xpath(element.car_div, browser)
+        car_page_qtd = int(len(cars_div.find_elements(By.XPATH, './div'))) - 2
+
+        for car in range(car_page_qtd):
+            print(f"[Página 1] {car_page_qtd} / {car + 1}")
+
+            img_from_div = xpath(f'{element.car_div}/div[{car + 1}]/div/div[1]/a', browser)
+            img_from_div.click()
+
+            product(client_id, category_id, current_products, current_product_list, browser)
+
+            browser.back()
+
+
+        product_diff = [product for product in current_products
+                        if product["name"] not in {p["name"] for p in current_product_list}]
+
+        for product_delete in product_diff:
+            delete_by_id("product", product_delete["id"])
+            print(f"\n[DELETE]\nID: {product_delete["id"]}\nNAME: {product_delete["name"]}")
